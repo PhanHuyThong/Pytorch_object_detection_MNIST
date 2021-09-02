@@ -6,12 +6,14 @@ Training object-detection models on standard datasets can be quite computational
 For the purpose of easy experimentation and establishing a work flow, the main code is presented in Colab notebooks, with core sections (models definition, training, ...) defined explicitly inside.
 
 Let's dive right in!👏
+# Contents
 
-# Data generation
+[***Data***](https://https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST#Data)
+# Data
 Inspired by my friend's [work](https://github.com/nguyenvantui/mnist-object-detection/blob/master/mnist_gen.py).
 See data_generation.ipynb in this repo for a cleaned notebook version.
 
-## Code structure
+## Generate data
 1. Load MNIST
 2. Generate object-detection data:
 
