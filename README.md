@@ -9,16 +9,27 @@ Let's dive right in!👏
 # Contents
 
 [***Data***](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#data)
+
 [***Single-shot detection (SSD)***](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#single-shot-detection-ssd)
+
   [Conventions](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#conventions)
+  
   [Work flow: main.ipynb](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#work-flow-mainipynb)
+  
   [Implementation details](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#implementation-details)
-    [Base Convolution]
-    [Auxiliary Convolution]
-    [Prediction Convolution]
-    [MultiBoxLoss]
-    [Dataset class]
-    [Evaluation]
+  
+    [Base Convolution](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#base-convolution)
+    
+    [Auxiliary Convolution](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#auxiliary-convolution)
+    
+    [Prediction Convolution](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#prediction-convolution)
+    
+    [MultiBoxLoss](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#multiboxloss)
+    
+    [Dataset class](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#dataset-class)
+    
+    [Evaluation](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#evaluation)
+    
   [Experiences learnt](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#experiences-learnt)
 
 # Data
