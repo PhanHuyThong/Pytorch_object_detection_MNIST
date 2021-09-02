@@ -8,7 +8,19 @@ For the purpose of easy experimentation and establishing a work flow, the main c
 Let's dive right in!👏
 # Contents
 
-[***Data***](https://https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST#Data)
+[***Data***](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#data)
+[***Single-shot detection (SSD)***](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#single-shot-detection-ssd)
+  [Conventions](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#conventions)
+  [Work flow: main.ipynb](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#work-flow-mainipynb)
+  [Implementation details](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#implementation-details)
+    [Base Convolution]
+    [Auxiliary Convolution]
+    [Prediction Convolution]
+    [MultiBoxLoss]
+    [Dataset class]
+    [Evaluation]
+  [Experiences learnt](https://github.com/PhanHuyThong/Pytorch_tutorial_object_detection_MNIST/blob/master/README.md#experiences-learnt)
+
 # Data
 Inspired by my friend's [work](https://github.com/nguyenvantui/mnist-object-detection/blob/master/mnist_gen.py).
 See data_generation.ipynb in this repo for a cleaned notebook version.
@@ -45,7 +57,7 @@ Examples:
 
 ----------------------------
 
-# 1. Single-shot detection (SSD)
+# Single-shot detection (SSD)
 Based on [this amazing tutorial](https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Object-Detection). 
 Please refer to it for concepts and explanations. Thank you sgrvinod for an amazing work!
 
@@ -64,7 +76,7 @@ Below is a summary of my code structure and work flow, modified from the origina
 
 ## Implementation details
 
-* Base Convolution 
+### Base Convolution 
 ```
 input: 
   tensor [batch, c, h, w]
@@ -87,7 +99,7 @@ output: (x, fm)
       conv(c4, c4), norm, act_fn(*)]
    fm = [output of marked layers]
    ```
-* Auxiliary Convolution
+### Auxiliary Convolution
 ```
 input: 
   tensor [batch, c', h', w'] - output x of Base Conv
@@ -105,7 +117,7 @@ output:
       conv(c2//2, c3), norm, act_fn (*)] 
   fm = [output of marked layers]
   ```
-* Prediction Convolution
+### Prediction Convolution
 ```
   input: fm - appended feature maps from base_conv, aux_conv output
   ouput: (loc_output, cla_output)
@@ -130,7 +142,7 @@ The location mappings of the priors in each feature maps are then concatenated t
   loc_output, cla_output = pred_conv(fm)
   return loc_output, cla_output, fm
   ```
-  * Detect object:
+### Detect object:
   ```
   input: 
     loc_output: tensor [batch, n_priors, 4]
@@ -153,7 +165,7 @@ The location mappings of the priors in each feature maps are then concatenated t
   return all_images_boxes, all_images_labels, all_images_scores
   ``` 
   
-* MultiBoxLoss
+### MultiBoxLoss
 ```
 input:     
   loc_output: tensor [batch, n_priors, 4]
@@ -178,13 +190,13 @@ cla_loss = CrossEntropyLoss(cla_output, cla_gt)
 cla_loss = cla_loss[positives] + (some highest values of cla_loss[~positives])
 return loc_loss + cla_loss
   ```
-* Dataset class: 
+### Dataset class: 
   * load train.pkl
   * get the i-th item, change image to tensor, boxes and labels to list of tensors
   * images are standardized to mean=0.5, std=1 (completely empirical values)
   * define custome collate function for torch dataloader because of those list of tensors
   
-* Evaluation:
+### Evaluation:
 ```
 collect all detections for all images in testset, stored in:
   all_boxes_output: list 
