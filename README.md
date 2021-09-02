@@ -63,26 +63,36 @@ Below is a summary of my code structure and work flow, modified from the origina
 ## Implementation details
 
 * Base Convolution 
-  * `input`: tensor `[batch, channel, h, w]`
-  * `output`: `(x, fm)` 
+```
+input: 
+  tensor [batch, c, h, w]
   
-  `x`: tensor `[batch, channel_out, h_out, w_out]` - output of the network. This is input to Auxiliary Convolution.
-  
-  `fm`: list of base conv feature maps used for detection. This automatically includes the last 2 feature maps. Note `x = fm[-1]` here, but can be modified.
-  
+output: (x, fm)
+  x: tensor [batch, c', h', w'] - output of the network, input to Auxiliary Convolution
+  fm: list of base_conv feature maps used for detection. Each feature map is a tensor - the output of a chosen layer of the base_conv network
+```  
   * Example parameter and structure: 
   ```
-    conv_layers=[1,10,20] 
-    --> module_list=[
-        conv(1,10), norm, act_fn, 
-        conv(10,10), norm, act_fn, 
-        maxpool, 
-        conv(10, 20), norm, act_fn, 
-        conv(20, 20), norm, act_fn]
+  conv_layers=[c1, c2, c3, c4] 
+  --> module_list=[
+      conv(c1, c2), norm, act_fn, 
+      conv(c2, c2), norm, act_fn, 
+      maxpool, 
+      conv(c2, c3), norm, act_fn, 
+      conv(c3, c3), norm, act_fn(*)
+      maxpool,
+      conv(c3, c4), norm, act_fn, 
+      conv(c4, c4), norm, act_fn(*)]
+   fm = [output of marked layers]
    ```
 * Auxiliary Convolution
-  * `input`: tensor, the last feature map of Base Convolution (default). Could be any other feature map though.
-  * `output`: list of aux conv feature maps used for detection. This automatically includes every feature maps similar to [the original tutorial](https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Object-Detection)
+```
+input: 
+  tensor [batch, c', h', w'] - output x of Base Conv
+  
+output: 
+  fm: list of aux conv feature maps used for detection. 
+```
   * Example parameter and structure: 
   ```
   conv_layers=[c1,c2,c3] 
@@ -91,57 +101,80 @@ Below is a summary of my code structure and work flow, modified from the origina
       conv(c1//2, c2, stride=2), norm, act_fn (*), 
       conv(c2, c2//2), norm, act_fn, 
       conv(c2//2, c3), norm, act_fn (*)] 
-   ```
-   The output of the marked layers are the collected feature maps for prediction.
+  fm = [output of marked layers]
+  ```
 * Prediction Convolution
-  * `input`: list of all feature maps for detection, collected from `aux_conv` and `base_conv`
-  * `ouput`: 
-    * `loc_output`: tensor `[batch, n_priors, 4]` 
-    * `cla_output`: tensor `[batch, n_priors, n_classes]`. **IMPORTANT**: raw output, NOT probability.
+```
+  input: fm - appended feature maps from base_conv, aux_conv output
+  ouput: (loc_output, cla_output)
+    loc_output: tensor [batch, n_priors, 4]
+    cla_output: tensor [batch, n_priors, n_classes]. **IMPORTANT**: raw output, NOT probability.
+```
+![Untitled 1](https://user-images.githubusercontent.com/43468452/131826370-d83c789e-e1af-4f5f-9238-4b7c6bfaaf3a.jpg)
+The location mappings of the priors in each feature maps are then concatenated together into `loc_output`. Same goes for `cla_output`.
 * SSD model 
-  * `priors_cxcy`: tensor `[n_priors, 4]`. Fractional coordinates of all priors of this model
+  * Init `priors_cxcy`: tensor `[n_priors, 4]`. Fractional coordinates of all priors of this model
   * Feed forward:
   ```
-  input [batch, c, h, w]
-
+  input: tensor [batch, c, h, w] - images
+  ouput: (loc_output, cla_output, fm)
+    loc_output: tensor [batch, n_priors, 4]
+    cla_output: tensor [batch, n_priors, n_classes]. **IMPORTANT**: raw output, NOT probability.
+    fm: list of feature maps used for prediction.
+  ----------------------------  
   x, fm1 = base_conv(input) 
   fm2 = aux_conv(x)
   fm = fm1 + fm2 #append lists
   loc_output, cla_output = pred_conv(fm)
-  
   return loc_output, cla_output, fm
   ```
   * Detect object:
   ```
-  input: loc_output [batch, n_priors, 4], cla_output [batch, n_priors, n_classes], min_score, max_overlap, top_k
-  
+  input: 
+    loc_output: tensor [batch, n_priors, 4]
+    cla_output: tensor [batch, n_priors, n_classes]
+    min_score, max_overlap, top_k
+  output:
+    all_images_boxes: list [batch] of tensor [n_boxes, 4]. n_boxes differs for each element in list
+    all_images_labels: list [batch] of tensor [n_boxes]
+    all_images_scores: list [batch] of tensor [n_boxes]
+    
+  ---------------------------
   softmax(cla_output)
   for each sample:
     for each non-background class:
-      find priors with score > min score
+      find priors who transformed into boxes has score > min score
+      #Note: each prior corresponds to one box, via loc_output
       sort them decreasing score
-      for each candidate prior:
-        unselect priors with lower scores, whose overlaps with this guy > max_overlap #Non-maximum Suppression
-  return all selected priors
+      for each candidate box:
+        unselect box with lower scores, whose overlaps with this box > max_overlap #Non-maximum Suppression
+  return all_images_boxes, all_images_labels, all_images_scores
   ``` 
   
 * MultiBoxLoss
-  * `input`:  `loc_output, cla_output, boxes, labels`
-  * Code:
-  ```
-  for each image:
+```
+input:     
+  loc_output: tensor [batch, n_priors, 4]
+  cla_output: tensor [batch, n_priors, n_classes] 
+  boxes: list [batch] of tensors [n_boxes, 4], in frac. coord
+  labels: list [batch] of tensors [n_boxes]
+------------------------
+for each image:
+  Generate groundtruths loc_gt, cla_gt:
     assign each prior with the box/label with highest overlap
-    assign each box/label with the prior with highest overlap. Those priors corresponds to those boxes/labels, overwriting the above.
+    assign each box/label with the prior with highest overlap
+    (These priors corresponds to these boxes/labels, overwriting the above)
     loc_gt = (box coordinates) to (gcxgcy) for each prior
     priors whose overlap with their box < threshold is background
     cla_gt = class for each prior
-  
-  #no more images, only `(batch * n_priors)` priors. Reshaping from `[batch, n_priors, (4 or n_classes)]` to `[batch * n_priors, *]` is important here. See code for details.
-  positives = non-background priors
-  loc_loss = L1Loss(loc_output[positives], loc_gt[positives])
-  cla_loss = CrossEntropyLoss(cla_output, cla_gt) 
-  cla_loss = cla_loss[positives] + (some highest values of cla_loss[~positives])
-  return loc_loss + cla_loss
+
+#no more images, only (batch * n_priors) priors. 
+#Reshape from [batch, n_priors, (4 or n_classes)] to [batch * n_priors, (4 or n_classes)]
+positives = non-background priors
+loc_loss = L1Loss(loc_output[positives], loc_gt[positives])
+cla_loss = CrossEntropyLoss(cla_output, cla_gt) 
+cla_loss = cla_loss[positives] + (some highest values of cla_loss[~positives])
+return loc_loss + cla_loss
   ```
 * Dataset class: 
   * load train.pkl
@@ -151,14 +184,25 @@ Below is a summary of my code structure and work flow, modified from the origina
   
 * Evaluation:
 ```
-collect all detections for all images in testset
-calculate APs, mAP between them and the groundtruth detections 
+collect all detections for all images in testset, stored in:
+  all_boxes_output: list 
+calculate APs, mAP between all_boxes_output and all_boxes_gt - the groundtruth detections 
 ```
 
 ## Experiences learnt
 * In this case it is better to reduce learning rate (lr) by a small amount (`gamma = 0.5`) every few (5-10) epochs, rather than the standard `gamma = 0.1` with big (50-100) epoch steps
 ![train_loss](https://user-images.githubusercontent.com/43468452/131781762-e7e28a85-8030-4662-8c82-9d24161f1d86.png)
+
+*Base model [Epoch vs train loss] plot without reducing learning rate. Note that SSD models are normally trained without reducing lr in the first 100 epochs.* `mAP = 0.79`
+
 ![train_loss (1)](https://user-images.githubusercontent.com/43468452/131782058-fac3e3b1-8e8f-4d0f-a236-3d1becf102c5.png)
+
+*Improved model [Epoch vs train loss] plot with finer lr reduction steps, and InstanceNorm introduced into Prediction Conv.* `mAP = 0.88`
+
+Test detections of this model at `min_score=0.4, max_overlap=0.45, top_k=200`:
+![image](https://user-images.githubusercontent.com/43468452/131783034-acfd988f-fdaa-4a5a-aae5-645ca3304a60.png)
+
+We can see that it fails to detect number 1. The Average Precision for class "1" is `0.70`.
 
 * InstanceNorm/BatchNorm before Prediction Convolution may help, and more stable than channel-wise rescale factors 
 * Remember to define priors aspect ratio/size such that they can match ground truth boxes more easily (detecting "1")
